@@ -1,13 +1,15 @@
 import axios from 'axios';
-//TODO: me cambie a node 22 y ahora no jala :(
-const URL = 'https://api.ynab.com/v1';
-const YNAB_TOKEN = 'nb8w3DS8Wcgfl9ife5FARykbyourEJoPMpywKwhHJWQ';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const BASE_YNAB_URL = 'https://api.ynab.com/v1';
 
 async function getYnabData(endpoint = '') {
   try {
-    const { data } = await axios.get(URL + endpoint, {
+    const { data } = await axios.get(BASE_YNAB_URL + endpoint, {
       headers: {
-        Authorization: `Bearer ${YNAB_TOKEN}`,
+        Authorization: `Bearer ${process.env.YNAB_KEY}`,
       },
     });
     return data;
