@@ -26,10 +26,10 @@ console.log(userData);
 const budgetsUrl = '/budgets';
 const budgetsData = await getYnabData(budgetsUrl);
 console.log(JSON.stringify(budgetsData, null, 2));
-const budgetId = 'e4cfb304-256e-4a9c-8a7c-9f4e23950ba8';
-const categoriesUrl = `/budgets/${budgetId}/categories`;
-const categoriesData = await getYnabData(categoriesUrl);
-console.log(JSON.stringify(categoriesData, null, 2));
-console.log('You rock');
+// const budgetId = 'e4cfb304-256e-4a9c-8a7c-9f4e23950ba8';
+// const categoriesUrl = `/budgets/${budgetId}/categories`;
+// const categoriesData = await getYnabData(categoriesUrl);
+// console.log(JSON.stringify(categoriesData, null, 2));
+// console.log('You rock');
 // TODO: Search budgets, in base of an inputed name, search for the specified budget.
 
