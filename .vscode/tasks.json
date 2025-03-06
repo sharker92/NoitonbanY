@@ -5,9 +5,14 @@
 			"type": "npm",
 			"script": "build",
 			"group": "build",
-			"problemMatcher": [],
+			"problemMatcher": ["$tsc"],
 			"label": "npm: build",
-			"detail": "tsc"
-		}
+			"detail": "tsc",
+			"options": {
+        "env": {
+          "PATH": "/Users/sharker/.local/share/fnm/current/bin:${env:PATH}"
+        }
+      }
+    }
 	]
 }

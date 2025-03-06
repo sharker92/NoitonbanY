@@ -5,14 +5,12 @@ dotenv.config();
 
 const BASE_NOTION_URL = 'https://api.notion.com';
 
-console.log(process.env.NOTION_KEY);
-console.log('notion key');
 const notion = new Client({ auth: process.env.NOTION_KEY });
 
 // const listUsersResponse = await notion.users.list({});
 // console.log(listUsersResponse);
 const habits = await notion.databases.query({
-  database_id: '0454bd36d43345eeae35db20cbb937c8',
+  database_id: process.env.NOTION_MAIN_DATABASE_ID,
   filter: {
     and: [
       { property: 'Due', date: { is_not_empty: true } },
@@ -23,5 +21,13 @@ const habits = await notion.databases.query({
   },
 });
 console.log(habits);
+console.log(habits.results.length);
 console.log('notion end');
+
+// Testing in 1 and 2 tables
+// const habits = await notion.databases.query({
+//   database_id: '19bf80c2a4fc80b28517f6e8daa29386',
+// });
+// console.log(habits);
+// console.log(habits.results.length);
 
