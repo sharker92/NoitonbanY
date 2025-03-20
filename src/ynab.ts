@@ -1,19 +1,6 @@
 import * as ynab from 'ynab';
 import { Client } from '@notionhq/client';
-import { writeFile } from 'fs/promises'; // TODO: guardar en un archivo todos las transacciones para analizarlas y ver todas las posibilidades sobre todo las split transactions 13/03/24
-// (async () => {
-//     try {
-//         // Convert the object to a JSON string
-//         const jsonString = JSON.stringify(myObject, null, 2); // Pretty format with indentation
-//
-//         // Write the JSON string to a file
-//         await writeFile('myData.json', jsonString);
-//
-//         console.log('File has been saved successfully!');
-//     } catch (err) {
-//         console.error('Error writing to file:', err);
-//     }
-// })();
+import { writeFile } from 'fs/promises';
 
 import dotenv from 'dotenv';
 
@@ -25,9 +12,9 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
     // '2025-02-01',
   );
   const transactions = transactionsResponse.data.transactions;
+  saveObjectToJsonFile(transactions, 'transactions');
   const transactionsServerKnowledge =
     transactionsResponse.data.server_knowledge;
-  // console.log(transactions);
   console.log(transactions[10]);
   console.log(transactions[11]);
   console.log(transactions.length);
@@ -76,6 +63,19 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
       category_id: {
         rich_text: [{ text: { content: transaction.category_id } }],
       },
+      cleared: {
+        select: { name: transaction.cleared },
+      },
+      flag_color: {
+        select: {
+          name: !!transaction?.flag_color ? transaction.flag_color : 'null',
+        },
+      },
+      flag_name: {
+        select: {
+          name: !!transaction?.flag_name ? transaction.flag_name : 'null', // Revisar si esto es lo valido para devolver algo vacío 20/03/25
+        },
+      },
     },
   });
   console.log(response);
@@ -86,14 +86,14 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
 })();
 // TODO: load everything in notion and do a process to get the last server_knowledge to just pull every day the last transactions.
 // {
-//   id: '01028d15-32ec-473a-a096-84bbfe83bc06', NOTE: ✅
+//   id: '01028d15-32ec-473a-a096-84bbfe83bc06', NOTE: ✅ https://api.ynab.com/v1#/
 //   date: '2023-09-02', NOTE: ✅
 //   amount: -990080, NOTE: ✅
 //   memo: '', NOTE: ✅
-//   cleared: 'reconciled',
-//   approved: true,
-//   flag_color: undefined,
-//   flag_name: undefined,
+//   cleared: 'reconciled', NOTE: ✅
+//   approved: true, // WARN: Sigue agregar este
+//   flag_color: undefined, NOTE: ✅
+//   flag_name: undefined, NOTE: ✅
 //   account_id: '5afbbcbc-fca0-4404-bd06-d914cd21e9f5', NOTE: ✅
 //   payee_id: '5f77e6dd-09ec-40fc-8a01-6d2bcabf8b74', NOTE: ✅
 //   category_id: 'fad59901-5dc1-4108-8ff2-14b4fa39bdb5', NOTE: ✅
@@ -135,4 +135,21 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
 //   category_name: '🫒 Alacena',
 //   subtransactions: []
 // }
+
+async function saveObjectToJsonFile(
+  myObject: object,
+  fileName: string = 'myFile',
+) {
+  try {
+    // Convert the object to a JSON string
+    const jsonString = JSON.stringify(myObject, null, 2); // Pretty format with indentation
+
+    // Write the JSON string to a file
+    await writeFile(fileName + '.json', jsonString);
+
+    console.log('File has been saved successfully!');
+  } catch (err) {
+    console.error('Error writing to file:', err);
+  }
+}
 
