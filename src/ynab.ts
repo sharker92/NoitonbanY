@@ -21,10 +21,10 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
   console.log(transactionsServerKnowledge);
   const notion = new Client({ auth: process.env.NOTION_KEY });
   const transaction = transactions[11];
-  const response = await notion.pages.create({
+  const notionCreateRequest = {
     parent: { database_id: process.env.NOTION_YNAB_DATABASE_ID },
     properties: {
-      Name: {
+      Memo: {
         type: 'title',
         title: [
           {
@@ -66,18 +66,22 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
       cleared: {
         select: { name: transaction.cleared },
       },
-      flag_color: {
-        select: {
-          name: !!transaction?.flag_color ? transaction.flag_color : 'null',
-        },
-      },
-      flag_name: {
-        select: {
-          name: !!transaction?.flag_name ? transaction.flag_name : 'null', // Revisar si esto es lo valido para devolver algo vacío 20/03/25
-        },
+      approved: {
+        checkbox: transaction.approved,
       },
     },
-  });
+  };
+
+  if (transaction?.flag_name) {
+    notionCreateRequest['flag_name'] = {
+      select: {
+        name: transaction.flag_name,
+        color: transaction?.flag_color,
+      },
+    };
+  }
+
+  const response = await notion.pages.create(notionCreateRequest);
   console.log(response);
   // Get budgets data
   // const budgetsResponse = await ynabAPI.budgets.getBudgets();
@@ -85,13 +89,14 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
   // console.log(budgetsResponse);
 })();
 // TODO: load everything in notion and do a process to get the last server_knowledge to just pull every day the last transactions.
+// TODO: 27/03/25 review all ynab api data so I can match it in notion database. Continue creating columns and pushing data.
 // {
 //   id: '01028d15-32ec-473a-a096-84bbfe83bc06', NOTE: ✅ https://api.ynab.com/v1#/
 //   date: '2023-09-02', NOTE: ✅
 //   amount: -990080, NOTE: ✅
 //   memo: '', NOTE: ✅
 //   cleared: 'reconciled', NOTE: ✅
-//   approved: true, // WARN: Sigue agregar este
+//   approved: true, NOTE: ✅
 //   flag_color: undefined, NOTE: ✅
 //   flag_name: undefined, NOTE: ✅
 //   account_id: '5afbbcbc-fca0-4404-bd06-d914cd21e9f5', NOTE: ✅
