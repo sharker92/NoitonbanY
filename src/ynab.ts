@@ -24,12 +24,37 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
   const notionCreateRequest = {
     parent: { database_id: process.env.NOTION_YNAB_DATABASE_ID },
     properties: {
+      transaction_id: {
+        rich_text: [{ text: { content: transaction.id } }],
+      },
+      'Transaction Date': {
+        date: {
+          start: transaction.date,
+        },
+      },
+      Amount: {
+        number: transaction.amount / 1000,
+      },
+      Cleared: {
+        select: { name: transaction.cleared },
+      },
+      Approved: {
+        checkbox: transaction.approved,
+      },
+      account_id: {
+        rich_text: [{ text: { content: transaction.account_id } }],
+      },
+      Deleted: {
+        checkbox: transaction.deleted,
+      },
+      Account: { select: { name: transaction.account_name } },
+      // Non required
       Memo: {
         type: 'title',
         title: [
           {
             type: 'text',
-            text: { content: transaction.memo, link: null }, //TODO: SIgue mandar el transactions[0] hehe ya logre crear la pagina en notion :) https://developers.notion.com/reference/post-page
+            text: { content: transaction.memo, link: null },
             annotations: {
               bold: false,
               italic: false,
@@ -40,40 +65,42 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
           },
         ],
       },
-      'Transaction Date': {
-        date: {
-          start: transaction.date,
-        },
-      },
-      Amount: {
-        number: transaction.amount / 1000,
-      },
-      Payee: { select: { name: transaction.payee_name } }, //TODO: Revisa si el color se pone por defecto o cambia.
       Category: { select: { name: transaction.category_name } },
-      Account: { select: { name: transaction.account_name } },
-      ynab_id: {
-        rich_text: [{ text: { content: transaction.id } }],
-      },
-      account_id: {
-        rich_text: [{ text: { content: transaction.account_id } }],
-      },
+      Payee: { select: { name: transaction.payee_name } }, //TODO: Revisa si el color se pone por defecto o cambia.
       payee_id: {
         rich_text: [{ text: { content: transaction.payee_id } }],
       },
       category_id: {
         rich_text: [{ text: { content: transaction.category_id } }],
       },
-      cleared: {
-        select: { name: transaction.cleared },
+      transfer_account_id: {
+        rich_text: [{ text: { content: transaction.transfer_account_id } }],
       },
-      approved: {
-        checkbox: transaction.approved,
+      transfer_transaction_id: {
+        rich_text: [{ text: { content: transaction.transfer_transaction_id } }],
+      },
+      matched_transaction_id: {
+        rich_text: [{ text: { content: transaction.matched_transaction_id } }],
+      },
+      import_id: {
+        rich_text: [{ text: { content: transaction.import_id } }],
+      },
+      import_payee_name: {
+        rich_text: [{ text: { content: transaction.import_payee_name } }],
+      },
+      import_payee_name_original: {
+        rich_text: [
+          { text: { content: transaction.import_payee_name_original } },
+        ],
+      },
+      debt_transaction_type: {
+        select: { name: transaction.debt_transaction_type },
       },
     },
   };
 
   if (transaction?.flag_name) {
-    notionCreateRequest['flag_name'] = {
+    notionCreateRequest['Flag'] = {
       select: {
         name: transaction.flag_name,
         color: transaction?.flag_color,
@@ -90,6 +117,8 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
 })();
 // TODO: load everything in notion and do a process to get the last server_knowledge to just pull every day the last transactions.
 // TODO: 27/03/25 review all ynab api data so I can match it in notion database. Continue creating columns and pushing data.
+// TODO: 04/03/25 the non required data, if missing, notion complains. I probably need a function to trim them, if empty, before sending them to notion.
+// TODO: Substransactions should be childs in notion.
 // {
 //   id: '01028d15-32ec-473a-a096-84bbfe83bc06', NOTE: ✅ https://api.ynab.com/v1#/
 //   date: '2023-09-02', NOTE: ✅
