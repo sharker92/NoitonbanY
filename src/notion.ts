@@ -9,31 +9,59 @@ const notion = new Client({ auth: process.env.NOTION_KEY });
 
 // const listUsersResponse = await notion.users.list({});
 // console.log(listUsersResponse);
-async function getHabits(dateArray: Date[]): Promise<void> {
-  for (const date of dateArray) {
-    const doneHabits = await pullDoneHabits(date);
-    const habitPage = await pullHabitPage(date);
+async function getHabits(
+  startDate: Date = new Date(),
+  endDate: Date = new Date(),
+): Promise<void> {
+  //       TODO: give default values to start and end Date. Input will be string, not date type and then convert it to Date
+  //       function logDate(date?: Date | string): void {
+  //   if (!date || date === '') {
+  //     date = new Date(); // Default value
+  //   }
+  //   console.log(date instanceof Date ? date.toISOString() : new Date(date).toISOString());
+  // }
+
+  const currentDate = startDate;
+  while (currentDate <= endDate) {
+    const doneHabits = await pullDoneHabits(currentDate);
+    const habitPage = await pullHabitPage(currentDate);
+    await updateDoneHabits(doneHabits, habitPage);
     console.log('notion end');
-    for (const habit of doneHabits) {
-      // console.log(habit.properties);
-      // console.log(habit.properties.Task.title);
-      const habitName = habit.properties.Task.title[0].plain_text.trim();
-      console.log(habitName);
-      const habitProp = habitPage.properties[habitName];
-      console.log(habitProp);
-      if (!habitProp) {
-        console.error(`Habit ${habitName} not found on Habit Tracker database`);
-      }
-      //TODO:https://developers.notion.com/reference/update-a-database
-      //TODO: Sigue cambiar el valor a true y guardarlo en la base de datos.
-      //TODO: Seguiria hacer el two way. Cambio el Tracker creo/borro algo en el main ?? revisar si combiene o no.
-    }
+    currentDate.setDate(startDate.getDate() + 1); // Increment the date by 1 day
   }
 }
-const dateArray = [new Date()];
-getHabits(dateArray);
+// const dateArray = [new Date()];
+const startDate = new Date();
+const endDate = new Date(); // TODO: Should be a string in format 'YYYY-MM-DD'
+
+getHabits(startDate, endDate);
 
 //TODO: la fecha que mandas define desde donde empiezas a jalar datoss
+
+async function updateDoneHabits(doneHabits, habitPage) {
+  const properties = {};
+  for (const habit of doneHabits) {
+    // console.log(habit.properties);
+    // console.log(habit.properties.Task.title);
+    const habitName = habit.properties.Task.title[0].plain_text.trim();
+    // console.log(habitName);
+    const habitProp = habitPage.properties[habitName];
+    // console.log(habitProp);
+    if (!habitProp) {
+      console.error(`Habit '${habitName}' not found on Habit Tracker database`);
+      continue;
+    }
+    properties[habitName] = { checkbox: true };
+    //INFO:https://developers.notion.com/reference/update-a-database
+    //TODO: Seguiria hacer el two way. Cambio el Tracker creo/borro algo en el main ?? revisar si combiene o no.
+  }
+  console.log(properties);
+
+  await notion.pages.update({
+    page_id: habitPage.id,
+    properties,
+  });
+}
 
 function dateToYYYYMMDDFormat(date: Date) {
   return date.toISOString().split('T')[0];
