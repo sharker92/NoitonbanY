@@ -12,7 +12,7 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
     // '2025-02-01',
   );
   const transactions = transactionsResponse.data.transactions;
-  saveObjectToJsonFile(transactions, 'transactions');
+  await saveObjectToJsonFile(transactions, 'transactions');
   const transactionsServerKnowledge =
     transactionsResponse.data.server_knowledge;
   console.log(transactions[10]);
@@ -73,29 +73,30 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
       category_id: {
         rich_text: [{ text: { content: transaction.category_id } }],
       },
-      transfer_account_id: {
-        rich_text: [{ text: { content: transaction.transfer_account_id } }],
-      },
-      transfer_transaction_id: {
-        rich_text: [{ text: { content: transaction.transfer_transaction_id } }],
-      },
-      matched_transaction_id: {
-        rich_text: [{ text: { content: transaction.matched_transaction_id } }],
-      },
-      import_id: {
-        rich_text: [{ text: { content: transaction.import_id } }],
-      },
-      import_payee_name: {
-        rich_text: [{ text: { content: transaction.import_payee_name } }],
-      },
-      import_payee_name_original: {
-        rich_text: [
-          { text: { content: transaction.import_payee_name_original } },
-        ],
-      },
-      debt_transaction_type: {
-        select: { name: transaction.debt_transaction_type },
-      },
+      // TODO: Todos estos son iguales meter a la nueva funcion 10/04/25
+      // transfer_account_id: {
+      //   rich_text: [{ text: { content: transaction.transfer_account_id } }],
+      // },
+      // transfer_transaction_id: {
+      //   rich_text: [{ text: { content: transaction.transfer_transaction_id } }],
+      // },
+      // matched_transaction_id: {
+      //   rich_text: [{ text: { content: transaction.matched_transaction_id } }],
+      // },
+      // import_id: {
+      //   rich_text: [{ text: { content: transaction.import_id } }],
+      // },
+      // import_payee_name: {
+      //   rich_text: [{ text: { content: transaction.import_payee_name } }],
+      // },
+      // import_payee_name_original: {
+      //   rich_text: [
+      //     { text: { content: transaction.import_payee_name_original } },
+      //   ],
+      // },
+      // debt_transaction_type: {
+      //   select: { name: transaction.debt_transaction_type },
+      // },
     },
   };
 
@@ -107,6 +108,16 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
       },
     };
   }
+  if (transaction?.transfer_account_id) {
+    // TODO: 10/04/2025 - Hacer una función para revisar esto
+    notionCreateRequest['transfer_account_id'] = {
+      rich_text: [{ text: { content: transaction.transfer_account_id } }],
+    };
+  }
+  console.log('this is the chosen one', JSON.stringify(notionCreateRequest));
+  // const notionFilteredCreateRequest =
+  //   filterObjectEmptyProperties(notionCreateRequest);
+  // console.log('this is the chosen one', JSON.stringify(notionCreateRequest));
 
   const response = await notion.pages.create(notionCreateRequest);
   console.log(response);
@@ -169,6 +180,19 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
 //   category_name: '🫒 Alacena',
 //   subtransactions: []
 // }
+//
+
+function filterObjectEmptyProperties(obj) {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, value]) => {
+      return (
+        value !== undefined &&
+        value !== null &&
+        !(typeof value === 'object' && Object.keys(value).length === 0)
+      );
+    }),
+  );
+}
 
 async function saveObjectToJsonFile(
   myObject: object,
