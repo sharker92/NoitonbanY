@@ -7,7 +7,6 @@
     "build": "tsc",
     "ynab": "tsx src/ynab.ts",
     "ynab-api": "tsx src/ynab_api.ts",
-    "notion": "tsx src/notion.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -24,10 +23,8 @@
     "typescript-eslint": "^8.18.2"
   },
   "dependencies": {
-    "@notionhq/client": "^2.2.15",
     "axios": "^1.7.7",
     "dotenv": "^16.4.7",
     "ynab": "^2.6.0"
   }
 }
-
