@@ -19,116 +19,15 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
   console.log(transactions[11]);
   console.log(transactions.length);
   console.log(transactionsServerKnowledge);
-  const notion = new Client({ auth: process.env.NOTION_KEY });
   const transaction = transactions[11];
-  const notionCreateRequest = {
-    parent: { database_id: process.env.NOTION_YNAB_DATABASE_ID },
-    properties: {
-      transaction_id: {
-        rich_text: [{ text: { content: transaction.id } }],
-      },
-      'Transaction Date': {
-        date: {
-          start: transaction.date,
-        },
-      },
-      Amount: {
-        number: transaction.amount / 1000,
-      },
-      Cleared: {
-        select: { name: transaction.cleared },
-      },
-      Approved: {
-        checkbox: transaction.approved,
-      },
-      account_id: {
-        rich_text: [{ text: { content: transaction.account_id } }],
-      },
-      Deleted: {
-        checkbox: transaction.deleted,
-      },
-      Account: { select: { name: transaction.account_name } },
-      // Non required
-      Memo: {
-        type: 'title',
-        title: [
-          {
-            type: 'text',
-            text: { content: transaction.memo, link: null },
-            annotations: {
-              bold: false,
-              italic: false,
-              strikethrough: false,
-              code: false,
-              color: 'default',
-            },
-          },
-        ],
-      },
-      Category: { select: { name: transaction.category_name } },
-      Payee: { select: { name: transaction.payee_name } }, //TODO: Revisa si el color se pone por defecto o cambia.
-      payee_id: {
-        rich_text: [{ text: { content: transaction.payee_id } }],
-      },
-      category_id: {
-        rich_text: [{ text: { content: transaction.category_id } }],
-      },
-      // TODO: Todos estos son iguales meter a la nueva funcion 10/04/25
-      // transfer_account_id: {
-      //   rich_text: [{ text: { content: transaction.transfer_account_id } }],
-      // },
-      // transfer_transaction_id: {
-      //   rich_text: [{ text: { content: transaction.transfer_transaction_id } }],
-      // },
-      // matched_transaction_id: {
-      //   rich_text: [{ text: { content: transaction.matched_transaction_id } }],
-      // },
-      // import_id: {
-      //   rich_text: [{ text: { content: transaction.import_id } }],
-      // },
-      // import_payee_name: {
-      //   rich_text: [{ text: { content: transaction.import_payee_name } }],
-      // },
-      // import_payee_name_original: {
-      //   rich_text: [
-      //     { text: { content: transaction.import_payee_name_original } },
-      //   ],
-      // },
-      // debt_transaction_type: {
-      //   select: { name: transaction.debt_transaction_type },
-      // },
-    },
-  };
+  await createNotionPageFromTransaction(transaction);
 
-  if (transaction?.flag_name) {
-    notionCreateRequest['Flag'] = {
-      select: {
-        name: transaction.flag_name,
-        color: transaction?.flag_color,
-      },
-    };
-  }
-  if (transaction?.transfer_account_id) {
-    // TODO: 10/04/2025 - Hacer una función para revisar esto
-    notionCreateRequest['transfer_account_id'] = {
-      rich_text: [{ text: { content: transaction.transfer_account_id } }],
-    };
-  }
-  console.log('this is the chosen one', JSON.stringify(notionCreateRequest));
-  // const notionFilteredCreateRequest =
-  //   filterObjectEmptyProperties(notionCreateRequest);
-  // console.log('this is the chosen one', JSON.stringify(notionCreateRequest));
-
-  const response = await notion.pages.create(notionCreateRequest);
-  console.log(response);
   // Get budgets data
   // const budgetsResponse = await ynabAPI.budgets.getBudgets();
   // const budgets = budgetsResponse.data.budgets;
   // console.log(budgetsResponse);
 })();
 // TODO: load everything in notion and do a process to get the last server_knowledge to just pull every day the last transactions.
-// TODO: 27/03/25 review all ynab api data so I can match it in notion database. Continue creating columns and pushing data.
-// TODO: 04/03/25 the non required data, if missing, notion complains. I probably need a function to trim them, if empty, before sending them to notion.
 // TODO: Substransactions should be childs in notion.
 // {
 //   id: '01028d15-32ec-473a-a096-84bbfe83bc06', NOTE: ✅ https://api.ynab.com/v1#/
@@ -182,16 +81,24 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
 // }
 //
 
-function filterObjectEmptyProperties(obj) {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([_, value]) => {
-      return (
-        value !== undefined &&
-        value !== null &&
-        !(typeof value === 'object' && Object.keys(value).length === 0)
-      );
-    }),
-  );
+function addOptionalTextProperties(transaction) {
+  const optionalTextProperties = [
+    'transfer_account_id',
+    'transfer_transaction_id',
+    'matched_transaction_id',
+    'import_id',
+    'import_payee_name',
+    'import_payee_name_original',
+  ];
+  const notionOptionalTextProperties = {};
+  for (const textProp of optionalTextProperties) {
+    if (transaction?.[textProp]) {
+      notionOptionalTextProperties[textProp] = {
+        rich_text: [{ text: { content: transaction[textProp] } }],
+      };
+    }
+  }
+  return notionOptionalTextProperties;
 }
 
 async function saveObjectToJsonFile(
@@ -209,5 +116,95 @@ async function saveObjectToJsonFile(
   } catch (err) {
     console.error('Error writing to file:', err);
   }
+}
+
+async function createNotionPageFromTransaction(transaction) {
+  const notion = new Client({ auth: process.env.NOTION_KEY }); //INFO: Probably spit a function to create the notion Client, another to create the request and another to create the page.
+  let notionCreateRequest = {
+    parent: { database_id: process.env.NOTION_YNAB_DATABASE_ID },
+    properties: {
+      transaction_id: {
+        rich_text: [{ text: { content: transaction.id } }],
+      },
+      'Transaction Date': {
+        date: {
+          start: transaction.date,
+        },
+      },
+      Amount: {
+        number: transaction.amount / 1000,
+      },
+      Cleared: {
+        select: { name: transaction.cleared },
+      },
+      Approved: {
+        checkbox: transaction.approved,
+      },
+      account_id: {
+        rich_text: [{ text: { content: transaction.account_id } }],
+      },
+      Deleted: {
+        checkbox: transaction.deleted,
+      },
+      Account: { select: { name: transaction.account_name } },
+      // Non required properties
+      Memo: {
+        type: 'title',
+        title: [
+          {
+            type: 'text',
+            text: { content: transaction.memo, link: null },
+            annotations: {
+              bold: false,
+              italic: false,
+              strikethrough: false,
+              code: false,
+              color: 'default',
+            },
+          },
+        ],
+      },
+      Category: { select: { name: transaction.category_name } },
+      Payee: { select: { name: transaction.payee_name } }, //TODO: Revisa si el color se pone por defecto o cambia.
+      payee_id: {
+        rich_text: [{ text: { content: transaction.payee_id } }],
+      },
+      category_id: {
+        rich_text: [{ text: { content: transaction.category_id } }],
+      },
+    },
+  };
+
+  if (transaction?.flag_name) {
+    notionCreateRequest['Flag'] = {
+      select: {
+        name: transaction.flag_name,
+        color: transaction?.flag_color,
+      },
+    };
+  }
+  if (!transaction?.debt_transaction_type) {
+    // FIX: This isn't inside the properties object that's why it doesn't apper (also check the FLAG property).
+    console.log('HERE HERE HERE');
+    // WARN: DONT FORGET TO DELETE THE !
+    notionCreateRequest.debt_transaction_type = {
+      // select: { name: transaction.debt_transaction_type }, // TODO: Verify if working
+      select: { name: 'arstarst' },
+    };
+  }
+  const notionOptionalTextProperties = addOptionalTextProperties(transaction);
+  console.log('astarsta', notionOptionalTextProperties);
+  notionCreateRequest.properties = {
+    ...notionCreateRequest.properties,
+    ...notionOptionalTextProperties,
+  };
+
+  console.log('this is the chosen one', JSON.stringify(notionCreateRequest));
+  // const notionFilteredCreateRequest =
+  //   filterObjectEmptyProperties(notionCreateRequest);
+  // console.log('this is the chosen one', JSON.stringify(notionCreateRequest));
+
+  const response = await notion.pages.create(notionCreateRequest);
+  console.log(response);
 }
 

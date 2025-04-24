@@ -16,13 +16,14 @@
     "@eslint/js": "^9.17.0",
     "@types/node": "^22.9.0",
     "eslint": "^9.17.0",
-    "eslint-plugin-react": "^7.37.3",
+    "eslint-plugin-react": "^7.37.5",
     "globals": "^15.14.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.18.2"
   },
   "dependencies": {
+    "@notionhq/client": "^2.3.0",
     "axios": "^1.7.7",
     "dotenv": "^16.4.7",
     "ynab": "^2.6.0"
