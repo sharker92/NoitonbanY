@@ -15,12 +15,13 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
   await saveObjectToJsonFile(transactions, 'transactions');
   const transactionsServerKnowledge =
     transactionsResponse.data.server_knowledge;
-  console.log(transactions[10]);
-  console.log(transactions[11]);
-  console.log(transactions.length);
-  console.log(transactionsServerKnowledge);
+  // console.log(transactions[10]);
+  // console.log(transactions[11]);
+  // console.log(transactions.length);
+  // console.log(transactionsServerKnowledge);
   const transaction = transactions[11];
-  await createNotionPageFromTransaction(transaction);
+  const notionRequestObject = createRequestObject(transaction);
+  await createNotionPageFromTransaction(notionRequestObject);
 
   // Get budgets data
   // const budgetsResponse = await ynabAPI.budgets.getBudgets();
@@ -29,6 +30,40 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
 })();
 // TODO: load everything in notion and do a process to get the last server_knowledge to just pull every day the last transactions.
 // TODO: Substransactions should be childs in notion.
+//
+//This are the data I'm sending
+//
+// {
+//   parent: { database_id: '1a0f80c2a4fc80f19a6dcf3eb2d9ec89' },
+//   properties: {
+//     transaction_id: { rich_text: [Array] },
+//     'Transaction Date': { date: [Object] },
+//     Amount: { number: -392.83 },
+//     Cleared: { select: [Object] },
+//     Approved: { checkbox: true },
+//     account_id: { rich_text: [Array] },
+//     Deleted: { checkbox: false },
+//     Account: { select: [Object] },
+//     Memo: { type: 'title', title: [Array] },
+//     Category: { select: [Object] },
+//     Payee: { select: [Object] },
+//     payee_id: { rich_text: [Array] },
+//     category_id: { rich_text: [Array] },
+//     Flag: { select: [Object] },
+//     debt_transaction_type: { select: [Object] },
+//     transfer_account_id: { rich_text: [Array] },
+//     transfer_transaction_id: { rich_text: [Array] },
+//     matched_transaction_id: { rich_text: [Array] },
+//     import_id: { rich_text: [Array] },
+//     import_payee_name: { rich_text: [Array] },
+//     import_payee_name_original: { rich_text: [Array] }
+//   }
+// }
+//
+//
+//
+//
+//
 // {
 //   id: '01028d15-32ec-473a-a096-84bbfe83bc06', NOTE: ✅ https://api.ynab.com/v1#/
 //   date: '2023-09-02', NOTE: ✅
@@ -81,26 +116,6 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
 // }
 //
 
-function addOptionalTextProperties(transaction) {
-  const optionalTextProperties = [
-    'transfer_account_id',
-    'transfer_transaction_id',
-    'matched_transaction_id',
-    'import_id',
-    'import_payee_name',
-    'import_payee_name_original',
-  ];
-  const notionOptionalTextProperties = {};
-  for (const textProp of optionalTextProperties) {
-    if (transaction?.[textProp]) {
-      notionOptionalTextProperties[textProp] = {
-        rich_text: [{ text: { content: transaction[textProp] } }],
-      };
-    }
-  }
-  return notionOptionalTextProperties;
-}
-
 async function saveObjectToJsonFile(
   myObject: object,
   fileName: string = 'myFile',
@@ -118,9 +133,8 @@ async function saveObjectToJsonFile(
   }
 }
 
-async function createNotionPageFromTransaction(transaction) {
-  const notion = new Client({ auth: process.env.NOTION_KEY }); //INFO: Probably spit a function to create the notion Client, another to create the request and another to create the page.
-  let notionCreateRequest = {
+function createRequestObject(transaction) {
+  const notionCreateRequest = {
     parent: { database_id: process.env.NOTION_YNAB_DATABASE_ID },
     properties: {
       transaction_id: {
@@ -174,36 +188,58 @@ async function createNotionPageFromTransaction(transaction) {
       },
     },
   };
-
-  if (transaction?.flag_name) {
-    notionCreateRequest['Flag'] = {
+  if (!transaction?.flag_name) {
+    //WARN: DELETE!
+    notionCreateRequest.properties.Flag = {
       select: {
-        name: transaction.flag_name,
-        color: transaction?.flag_color,
+        // name: transaction.flag_name,
+        // color: transaction?.flag_color,
+        name: 'blue',
+        color: 'green',
       },
     };
   }
   if (!transaction?.debt_transaction_type) {
-    // FIX: This isn't inside the properties object that's why it doesn't apper (also check the FLAG property).
-    console.log('HERE HERE HERE');
-    // WARN: DONT FORGET TO DELETE THE !
-    notionCreateRequest.debt_transaction_type = {
-      // select: { name: transaction.debt_transaction_type }, // TODO: Verify if working
-      select: { name: 'arstarst' },
+    //WARN: DELETE!
+    notionCreateRequest.properties.debt_transaction_type = {
+      // select: { name: transaction.debt_transaction_type },
+      select: { name: 'transaction.debt_transaction_type ' },
     };
   }
   const notionOptionalTextProperties = addOptionalTextProperties(transaction);
-  console.log('astarsta', notionOptionalTextProperties);
+  // console.log('astarsta', notionOptionalTextProperties);
   notionCreateRequest.properties = {
     ...notionCreateRequest.properties,
     ...notionOptionalTextProperties,
   };
+  console.log(notionCreateRequest);
+  return notionCreateRequest;
+}
 
-  console.log('this is the chosen one', JSON.stringify(notionCreateRequest));
-  // const notionFilteredCreateRequest =
-  //   filterObjectEmptyProperties(notionCreateRequest);
-  // console.log('this is the chosen one', JSON.stringify(notionCreateRequest));
+function addOptionalTextProperties(transaction) {
+  const optionalTextProperties = [
+    'transfer_account_id',
+    'transfer_transaction_id',
+    'matched_transaction_id',
+    'import_id',
+    'import_payee_name',
+    'import_payee_name_original',
+  ];
+  const notionOptionalTextProperties = {};
+  for (const textProp of optionalTextProperties) {
+    if (!transaction?.[textProp]) {
+      //WARN: DELETE!
+      notionOptionalTextProperties[textProp] = {
+        // rich_text: [{ text: { content: transaction[textProp] } }],
+        rich_text: [{ text: { content: 'transaction[textProp] ' } }],
+      };
+    }
+  }
+  return notionOptionalTextProperties;
+}
 
+async function createNotionPageFromTransaction(notionCreateRequest) {
+  const notion = new Client({ auth: process.env.NOTION_KEY }); //INFO: Probably spit a function to create the notion Client, another to create the request and another to create the page.
   const response = await notion.pages.create(notionCreateRequest);
   console.log(response);
 }
