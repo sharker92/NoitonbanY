@@ -4,6 +4,7 @@
   "main": "dist/main.js",
   "type": "module",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "build": "tsc",
     "ynab": "tsx src/ynab.ts",
     "ynab-api": "tsx src/ynab_api.ts",
@@ -29,3 +30,4 @@
     "ynab": "^2.6.0"
   }
 }
+
