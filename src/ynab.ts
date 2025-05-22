@@ -57,8 +57,11 @@ const ynabAPI = new ynab.API(process.env.YNAB_KEY);
     ],
   };
   const notionRequestObject = createRequestObject(transaction);
-  await createNotionPageFromTransaction(notionRequestObject);
-
+  const parentPageId =
+    await createNotionPageFromTransaction(notionRequestObject);
+  if (transaction.subtransactions.length > 0) {
+    await createNotionChildPage(parentPageId);
+  }
   // Get budgets data
   // const budgetsResponse = await ynabAPI.budgets.getBudgets();
   // const budgets = budgetsResponse.data.budgets;
@@ -288,8 +291,27 @@ function addOptionalTextProperties(transaction) {
 
 async function createNotionPageFromTransaction(notionCreateRequest) {
   const notion = new Client({ auth: process.env.NOTION_KEY });
-  const response = await notion.pages.create(notionCreateRequest);
-  console.log(response);
+  const pageResponse = await notion.pages.create(notionCreateRequest);
+  console.log(pageResponse);
+  //TODO: do it in it's own function, return the id
+  return pageResponse.id;
+  console.log(childPageResponse);
+  //BUG: https://chat.deepseek.com/a/chat/s/b329d24e-479f-4ec4-be4a-c96e2d3675b1
+  // https://developers.notion.com/reference/property-object#relation
+  //
+}
+
+async function createNotionChildPage(parentPageId) {
+  const notion = new Client({ auth: process.env.NOTION_KEY });
+  //create a function to create the requests in an array
+  const childPageResponse = await notion.pages.create({
+    parent: { database_id: process.env.NOTION_YNAB_DATABASE_ID },
+    properties: {
+      Parent: {
+        relation: [{ id: parentPageId }],
+      },
+    },
+  });
 }
 // TODO create a jest test that test that the function creates a request with all data
 
