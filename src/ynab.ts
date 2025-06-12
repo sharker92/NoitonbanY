@@ -22,10 +22,10 @@ interface YnabTransaction {
   transfer_account_id?: string;
   transfer_transaction_id?: string;
   matched_transaction_id?: string;
-  import_id: string;
-  import_payee_name: string;
-  import_payee_name_original: string;
-  debt_transaction_type:
+  import_id?: string;
+  import_payee_name?: string;
+  import_payee_name_original?: string;
+  debt_transaction_type?:
     | 'payment'
     | 'refund'
     | 'fee'
@@ -109,7 +109,7 @@ interface YnabSubTransaction {
   const parentPageId =
     await createNotionPageFromTransaction(notionRequestObject);
   if (transaction.subtransactions.length > 0) {
-    await createNotionChildPage(parentPageId);
+    await createNotionChildPage(parentPageId, transaction.subtransactions);
   }
   // Get budgets data
   // const budgetsResponse = await ynabAPI.budgets.getBudgets();
@@ -120,6 +120,8 @@ interface YnabSubTransaction {
 // TODO: The only data missin is Substransactions [] should be childs in notion.
 // WARN: THIS IS NEXT, SUBTRANSACTIONS NEED A LOOP OR SOMETHING NESTED BUT IS THE SAME DATA.
 // NOTE: ✅ https://api.ynab.com/v1#/
+// NEXT: https://copilot.microsoft.com/chats/iwq3nvwZW8MBiEdYMKyTT
+// Fix the undefined for optional data and make a common function for sub and transactions
 
 async function saveObjectToJsonFile(
   myObject: object,
@@ -138,13 +140,13 @@ async function saveObjectToJsonFile(
   }
 }
 
-function createRequestObject(transaction) {
+function createRequestObject(transaction: YnabTransaction) {
   const notionRequestObject = {
     parent: { database_id: process.env.NOTION_YNAB_DATABASE_ID },
     properties: {
-      transaction_id: {
-        rich_text: [{ text: { content: transaction.id } }],
-      },
+      // ynab_id: {
+      //   rich_text: [{ text: { content: transaction.id } }],
+      // },
       'Transaction Date': {
         date: {
           start: transaction.date,
@@ -159,9 +161,9 @@ function createRequestObject(transaction) {
       Approved: {
         checkbox: transaction.approved,
       },
-      account_id: {
-        rich_text: [{ text: { content: transaction.account_id } }],
-      },
+      // account_id: {
+      //   rich_text: [{ text: { content: transaction.account_id } }],
+      // },
       Deleted: {
         checkbox: transaction.deleted,
       },
@@ -185,39 +187,53 @@ function createRequestObject(transaction) {
       },
       Category: { select: { name: transaction.category_name } },
       Payee: { select: { name: transaction.payee_name } }, //TODO: Revisa si el color se pone por defecto o cambia.
-      payee_id: {
-        rich_text: [{ text: { content: transaction.payee_id } }],
+      // payee_id: {
+      //   rich_text: [{ text: { content: transaction.payee_id } }],
+      // },
+      // category_id: {
+      //   rich_text: [{ text: { content: transaction.category_id } }],
+      // },
+      Flag: {
+        select: {
+          name: transaction.flag_name,
+          color: transaction?.flag_color,
+        },
       },
-      category_id: {
-        rich_text: [{ text: { content: transaction.category_id } }],
+      debt_transaction_type: {
+        select: { name: transaction.debt_transaction_type },
       },
     },
   };
-  if (transaction?.flag_name) {
-    notionRequestObject.properties.Flag = {
-      select: {
-        name: transaction.flag_name,
-        color: transaction?.flag_color,
-      },
-    };
-  }
-  if (transaction?.debt_transaction_type) {
-    notionRequestObject.properties.debt_transaction_type = {
-      select: { name: transaction.debt_transaction_type },
-    };
-  }
+  // if (transaction?.flag_name) {
+  //   notionRequestObject.properties.Flag = {
+  //     select: {
+  //       name: transaction.flag_name,
+  //       color: transaction?.flag_color,
+  //     },
+  //   };
+  // }
+  // if (transaction?.debt_transaction_type) {
+  //   notionRequestObject.properties.debt_transaction_type = {
+  //     select: { name: transaction.debt_transaction_type },
+  //   };
+  // }
   //TODO: Research how to send the create request with childs
-  const notionOptionalTextProperties = addOptionalTextProperties(transaction);
+  const notionTextProperties = addTextProperties(transaction);
   notionRequestObject.properties = {
     ...notionRequestObject.properties,
-    ...notionOptionalTextProperties,
+    ...notionTextProperties,
   };
   console.log(notionRequestObject);
-  return notionRequestObject;
+  const cleanNotionRequestObject = cleanObject(notionRequestObject);
+  return cleanNotionRequestObject;
 }
 
-function addOptionalTextProperties(transaction) {
-  const optionalTextProperties = [
+function addTextProperties(transaction: YnabTransaction) {
+  const textProperties = [
+    'ynab_id',
+    'account_id',
+    'payee_id',
+    'category_id',
     'transfer_account_id',
     'transfer_transaction_id',
     'matched_transaction_id',
@@ -225,36 +241,81 @@ function addOptionalTextProperties(transaction) {
     'import_payee_name',
     'import_payee_name_original',
   ];
-  const notionOptionalTextProperties = {};
-  for (const textProp of optionalTextProperties) {
+  const notionTextProperties = {};
+  for (const textProp of textProperties) {
     if (transaction?.[textProp]) {
-      notionOptionalTextProperties[textProp] = {
+      //INFO: Incluir en la función de limpieza?
+      notionTextProperties[textProp] = {
         rich_text: [{ text: { content: transaction[textProp] } }],
       };
     }
   }
-  return notionOptionalTextProperties;
+  return notionTextProperties;
 }
 
 async function createNotionPageFromTransaction(notionCreateRequest) {
+  // TODO: CReate notion type
   const notion = new Client({ auth: process.env.NOTION_KEY });
   const pageResponse = await notion.pages.create(notionCreateRequest);
   console.log(pageResponse);
   return pageResponse.id;
 }
 
-async function createNotionChildPage(parentPageId) {
+async function createNotionChildPage(
+  parentPageId: string,
+  subTransactions: YnabSubTransaction[],
+) {
   const notion = new Client({ auth: process.env.NOTION_KEY });
-  //create a function to create the requests in an array
-  const childPageResponse = await notion.pages.create({
-    parent: { database_id: process.env.NOTION_YNAB_DATABASE_ID },
-    properties: {
-      Parent: {
-        relation: [{ id: parentPageId }],
+  console.log('parentId', parentPageId);
+  for (const subTransaction of subTransactions) {
+    const childPageResponse = await notion.pages.create({
+      parent: { database_id: process.env.NOTION_YNAB_DATABASE_ID },
+      properties: {
+        Parent: {
+          relation: [{ id: parentPageId }],
+        },
+        ynab_id: {
+          rich_text: [{ text: { content: subTransaction.id } }],
+        },
+        transaction_id: {
+          rich_text: [{ text: { content: subTransaction.transaction_id } }],
+        },
+        Amount: {
+          number: subTransaction.amount / 1000,
+        },
+        Deleted: {
+          checkbox: subTransaction.deleted,
+        },
+        // Non required properties
+        Memo: {
+          type: 'title',
+          title: [
+            {
+              type: 'text',
+              text: { content: subTransaction.memo, link: null },
+              annotations: {
+                bold: false,
+                italic: false,
+                strikethrough: false,
+                code: false,
+                color: 'default',
+              },
+            },
+          ],
+        },
+        Category: { select: { name: subTransaction.category_name } },
+        Payee: { select: { name: subTransaction.payee_name } }, //TODO: Revisa si el color se pone por defecto o cambia.
+        payee_id: {
+          rich_text: [{ text: { content: subTransaction.payee_id } }],
+        },
+        category_id: {
+          rich_text: [{ text: { content: subTransaction.category_id } }],
+        },
       },
-    },
-  });
-  console.log(childPageResponse);
+      //create a function to create the requests in an array
+    });
+    console.log(childPageResponse);
+  }
   //INFO: https://chat.deepseek.com/a/chat/s/b329d24e-479f-4ec4-be4a-c96e2d3675b1
   // https://developers.notion.com/reference/property-object#relation
   // me quede creando la función para los child, estoy viendo si puedo reutilizar algo (el id del subtransaction es subtransaciton id)
@@ -262,4 +323,20 @@ async function createNotionChildPage(parentPageId) {
   // 05/29/25 -> cree los tipos a seguirle con lo de arriba (subtransactions)
 }
 // TODO create a jest test that test that the function creates a request with all data
+
+function cleanObject(obj: object) {
+  const newObj = {};
+  for (const key of Object.keys(obj)) {
+    const value = obj[key];
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const cleanedValue = cleanObject(value);
+      if (Object.keys(cleanedValue).length > 0) {
+        newObj[key] = cleanedValue;
+      }
+    } else if (value !== undefined) {
+      newObj[key] = value;
+    }
+  }
+  return newObj;
+}
 
